@@ -57,6 +57,39 @@ export type ApiApplication = {
   grantTransactions?: any[];
 };
 
+export type ApiStudentApplicationHistory = {
+  applicationId: string;
+  studentId: string;
+  scholarshipId: string;
+  scholarshipTitle: string;
+  programType: string;
+  status: string;
+  submissionDate: string | null;
+  archivedAt: string;
+  archivedReason: string;
+};
+
+export type ApiScholarshipHistoryApplicant = {
+  applicationId: string;
+  studentId: string;
+  name: string;
+  email: string;
+  status: string;
+  submissionDate: string | null;
+};
+
+export type ApiScholarshipHistory = {
+  id: string;
+  scholarshipId: string;
+  title: string;
+  programType: string;
+  endedAt: string;
+  endedBy: string;
+  totalApplicants: number;
+  grantedApplicants: number;
+  applicants: ApiScholarshipHistoryApplicant[];
+};
+
 export type ApiAnnouncement = {
   id: string;
   title: string;
@@ -154,16 +187,28 @@ export async function apiUpdateScholarship(
   return r.scholarship;
 }
 
-export async function apiDeleteScholarship(id: string): Promise<void> {
+export async function apiDeleteScholarship(id: string, adminId?: string): Promise<void> {
   await jsonFetch<{ ok: boolean }>('/scholarships/delete.php', {
     method: 'POST',
-    body: JSON.stringify({ id }),
+    body: JSON.stringify({ id, adminId }),
   });
+}
+
+export async function apiListScholarshipHistory(): Promise<ApiScholarshipHistory[]> {
+  const r = await jsonFetch<{ ok: boolean; history: ApiScholarshipHistory[] }>('/scholarships/history.php');
+  return r.history;
 }
 
 export async function apiListApplications(): Promise<ApiApplication[]> {
   const r = await jsonFetch<{ ok: boolean; applications: ApiApplication[] }>('/applications/list.php');
   return r.applications;
+}
+
+export async function apiListStudentApplicationHistory(studentId: string): Promise<ApiStudentApplicationHistory[]> {
+  const r = await jsonFetch<{ ok: boolean; history: ApiStudentApplicationHistory[] }>(
+    `/applications/history.php?studentId=${encodeURIComponent(studentId)}`
+  );
+  return r.history;
 }
 
 export async function apiCreateApplication(payload: {

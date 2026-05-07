@@ -46,7 +46,7 @@ interface DataContextType {
   => Promise<void>;
   addScholarship: (scholarship: Omit<Scholarship, 'id'>) => Promise<void>;
   updateScholarship: (id: string, scholarship: Partial<Scholarship>) => Promise<void>;
-  deleteScholarship: (id: string) => Promise<void>;
+  deleteScholarship: (id: string, adminId?: string) => Promise<void>;
   addAnnouncement: (announcement: Omit<Announcement, 'id' | 'date'>) => Promise<void>;
   updateAnnouncement: (id: string, announcement: Omit<Announcement, 'id' | 'date' | 'authorId'>) => Promise<void>;
   deleteAnnouncement: (id: string) => Promise<void>;
@@ -163,10 +163,23 @@ export function DataProvider({ children }: {children: ReactNode;}) {
     s
     )
     );
+    if (updates.status === 'Closed') {
+      setApplications((prev) =>
+      prev.map((app) =>
+      app.scholarshipId === id ?
+      {
+        ...app,
+        grantDisbursement: undefined,
+        grantTransactions: []
+      } :
+      app
+      )
+      );
+    }
     toast.success('Scholarship updated successfully');
   };
-  const deleteScholarship = async (id: string) => {
-    await apiDeleteScholarship(id);
+  const deleteScholarship = async (id: string, adminId?: string) => {
+    await apiDeleteScholarship(id, adminId);
     setScholarships((prev) =>
     prev.map((s) =>
     s.id === id ?
@@ -175,6 +188,17 @@ export function DataProvider({ children }: {children: ReactNode;}) {
       status: 'Closed'
     } :
     s
+    )
+    );
+    setApplications((prev) =>
+    prev.map((app) =>
+    app.scholarshipId === id ?
+    {
+      ...app,
+      grantDisbursement: undefined,
+      grantTransactions: []
+    } :
+    app
     )
     );
     toast.success('Scholarship marked as ended');

@@ -1,14 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { FileText, ArrowRight, Calendar } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { Card, StatusBadge, Button } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
+import { apiListStudentApplicationHistory, ApiStudentApplicationHistory } from '../../lib/api';
 export function Applications() {
   const { applications, scholarships } = useData();
   const { user } = useAuth();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [dbHistory, setDbHistory] = useState<ApiStudentApplicationHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const myApplications = applications.
   filter((a) => a.studentId === user?.id).
   sort(
@@ -23,6 +26,22 @@ export function Applications() {
   };
   const activeApplications = myApplications.filter((app) => !isHistoryApplication(app));
   const applicationHistory = myApplications.filter((app) => isHistoryApplication(app));
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    (async () => {
+      setHistoryLoading(true);
+      try {
+        const history = await apiListStudentApplicationHistory(user.id);
+        if (!cancelled) setDbHistory(history);
+      } finally {
+        if (!cancelled) setHistoryLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, myApplications.length, isHistoryOpen]);
   const renderApplicationCard = (
   app: (typeof myApplications)[number],
   mode: 'active' | 'history') => {
@@ -75,7 +94,7 @@ export function Applications() {
             variant="outline"
             size="sm"
             onClick={() => setIsHistoryOpen(true)}>
-            View History ({applicationHistory.length})
+            View History ({dbHistory.length})
           </Button>
         </div>
         <p className="text-gray-600 mt-1">
@@ -121,11 +140,36 @@ export function Applications() {
         title="Application History"
         maxWidth="max-w-3xl">
         
-        {applicationHistory.length > 0 ?
+        {historyLoading ?
+        <p className="text-sm text-gray-500">Loading history...</p> :
+        dbHistory.length > 0 ?
         <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-1">
-            {applicationHistory.map((app) => renderApplicationCard(app, 'history'))}
+            {dbHistory.map((h) =>
+          <Card key={`db-history-${h.applicationId}`} className="p-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {h.scholarshipTitle || 'Scholarship'}
+                      </h3>
+                      <StatusBadge status="Expired" />
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      {h.archivedReason}
+                    </p>
+                    <div className="flex items-center gap-4 text-sm text-gray-500">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        Applied:{' '}
+                        {h.submissionDate ? new Date(h.submissionDate).toLocaleDateString() : 'N/A'}
+                      </span>
+                      <span>ID: {h.applicationId.toUpperCase()}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+          )}
           </div> :
-
         <p className="text-sm text-gray-500">No history yet.</p>
         }
       </Modal>

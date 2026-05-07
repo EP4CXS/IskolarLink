@@ -25,6 +25,11 @@ export function Reports() {
   const { applications, scholarships, users } = useData();
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterScholarship, setFilterScholarship] = useState<string>('all');
+  const escapeCsv = (value: unknown) => {
+    const text = String(value ?? '');
+    const escaped = text.replace(/"/g, '""');
+    return `"${escaped}"`;
+  };
   const filtered = applications.filter((a) => {
     if (filterStatus !== 'all' && a.status !== filterStatus) return false;
     if (filterScholarship !== 'all' && a.scholarshipId !== filterScholarship)
@@ -76,8 +81,63 @@ export function Reports() {
     }));
   })();
   const handleExport = () => {
+    const headers = [
+      'Application ID',
+      'Applicant Name',
+      'Applicant Email',
+      'Scholarship',
+      'Status',
+      'Beneficiary',
+      'Date Submitted',
+      'Course / Program',
+      'Year Level',
+      'GPA',
+      'Family Income'
+    ];
+    const rows = filtered.map((a) => {
+      const student = users.find((u) => u.id === a.studentId);
+      const scholarship = scholarships.find((s) => s.id === a.scholarshipId);
+      const answers = a.answers || {};
+      const applicantName = (answers.fullName || student?.name || '').toString();
+      const applicantEmail = (answers.email || student?.email || '').toString();
+      const scholarshipTitle = scholarship?.title || '';
+      const status = a.status;
+      const beneficiary = a.status === 'Approved' ? 'Yes' : 'No';
+      const dateSubmitted = new Date(a.submissionDate).toLocaleDateString();
+      const course = (answers.course || student?.profile?.course || '').toString();
+      const yearLevel = (answers.yearLevel || student?.profile?.yearLevel || '').toString();
+      const gpa = (answers.gpa || student?.profile?.gpa || '').toString();
+      const familyIncome = (answers.familyIncome || answers.income || student?.profile?.income || '').toString();
+      return [
+        a.id,
+        applicantName,
+        applicantEmail,
+        scholarshipTitle,
+        status,
+        beneficiary,
+        dateSubmitted,
+        course,
+        yearLevel,
+        gpa,
+        familyIncome
+      ];
+    });
+    const csv = [
+    headers.map(escapeCsv).join(','),
+    ...rows.map((r) => r.map(escapeCsv).join(','))
+    ].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+    link.href = url;
+    link.download = `applicant-beneficiary-report-${timestamp}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     toast.success('Report exported successfully', {
-      description: `${filtered.length} applications exported to PDF.`
+      description: `${filtered.length} records exported to CSV.`
     });
   };
   return (

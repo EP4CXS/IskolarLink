@@ -35,6 +35,7 @@ export function ManageApplications() {
   const filteredApps = applications.filter((app) => {
     const student = users.find((u) => u.id === app.studentId);
     const scholarship = scholarships.find((s) => s.id === app.scholarshipId);
+    if (!scholarship || scholarship.status === 'Closed') return false;
     const searchLower = searchTerm.toLowerCase();
     const applicantName = getApplicantName(app, student).toLowerCase();
     const scholarshipTitle = (scholarship?.title || '').toLowerCase();

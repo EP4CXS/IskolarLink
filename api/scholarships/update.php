@@ -46,11 +46,22 @@ foreach ($allowed as $k) {
 if (count($fields) === 0) json_error('No updates provided', 400);
 
 try {
+  $pdo = db();
   $params[] = $id;
-  $stmt = db()->prepare("UPDATE scholarships SET " . implode(', ', $fields) . " WHERE id = ?");
+  $stmt = $pdo->prepare("UPDATE scholarships SET " . implode(', ', $fields) . " WHERE id = ?");
   $stmt->execute($params);
 
-  $fetch = db()->prepare("SELECT id, title, description, deadline, slots, benefits_json, criteria_json, status FROM scholarships WHERE id = ? LIMIT 1");
+  // If scholarship is closed via edit/update, clear grant disbursement records too.
+  if (array_key_exists('status', $body) && (string)$body['status'] === 'Closed') {
+    $clearGrants = $pdo->prepare("
+      UPDATE scholarship_applications
+      SET grant_disbursement_json = NULL, grant_transactions_json = JSON_ARRAY()
+      WHERE scholarship_id = ?
+    ");
+    $clearGrants->execute([$id]);
+  }
+
+  $fetch = $pdo->prepare("SELECT id, title, description, deadline, slots, benefits_json, criteria_json, status FROM scholarships WHERE id = ? LIMIT 1");
   $fetch->execute([$id]);
   $r = $fetch->fetch();
   if (!$r) json_error('Scholarship not found', 404);

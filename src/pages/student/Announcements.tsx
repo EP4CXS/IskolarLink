@@ -33,7 +33,7 @@ export function StudentAnnouncements() {
       .map((s) => detectProgramFromTitle(s.title))
       .filter(Boolean) as string[]
   );
-  // Visible: 'all' OR a scholarship where the student is approved beneficiary
+  // Visible: 'all' OR a scholarship/program where the student is an approved beneficiary
   const visible = announcements.
   filter(
     (a) =>

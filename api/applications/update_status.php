@@ -6,6 +6,14 @@ require_once __DIR__ . '/../_lib/db.php';
 require_once __DIR__ . '/../_lib/response.php';
 require_once __DIR__ . '/../_lib/uuid.php';
 
+function detect_program_type(string $title): ?string {
+  $upper = strtoupper($title);
+  if (strpos($upper, 'CHED-CUSCHO') !== false || strpos($upper, 'CUSCHO') !== false) return 'CHED-CUSCHO';
+  if (strpos($upper, 'CHED - TES') !== false || strpos($upper, 'CHED-TES') !== false || strpos($upper, 'TERTIARY EDUCATION SUBSIDY') !== false || strpos($upper, 'TES') !== false) return 'CHED - TES';
+  if (strpos($upper, 'CHED-TDP') !== false || strpos($upper, 'TULONG DUNONG') !== false || strpos($upper, 'TDP') !== false) return 'CHED-TDP';
+  return null;
+}
+
 $raw = file_get_contents('php://input');
 $body = is_string($raw) ? json_decode($raw, true) : null;
 if (!is_array($body)) json_error('Invalid JSON body', 400);
@@ -66,6 +74,10 @@ try {
 
   $studentId = (string)$app['student_id'];
   $scholarshipId = (string)$app['scholarship_id'];
+  $schStmt = $pdo->prepare("SELECT title FROM scholarships WHERE id = ? LIMIT 1");
+  $schStmt->execute([$scholarshipId]);
+  $scholarshipTitle = (string)($schStmt->fetchColumn() ?: '');
+  $programType = detect_program_type($scholarshipTitle);
 
   if ($status === 'Approved') {
     $pdo->prepare("DELETE FROM rejected_applicants WHERE application_id = ?")->execute([$id]);
@@ -81,6 +93,36 @@ try {
       VALUES (?, ?, ?, ?, ?, ?)
       ON DUPLICATE KEY UPDATE rejected_at = VALUES(rejected_at), reason = VALUES(reason), rejected_by = VALUES(rejected_by)
     ")->execute([$id, $studentId, $scholarshipId, $now, $note, $author]);
+  }
+
+  if ($status === 'Rejected') {
+    $historyUpsert = $pdo->prepare("
+      INSERT INTO student_application_history
+      (application_id, student_id, scholarship_id, scholarship_title, program_type, status, submission_date, archived_at, archived_reason)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        student_id = VALUES(student_id),
+        scholarship_id = VALUES(scholarship_id),
+        scholarship_title = VALUES(scholarship_title),
+        program_type = VALUES(program_type),
+        status = VALUES(status),
+        submission_date = VALUES(submission_date),
+        archived_at = VALUES(archived_at),
+        archived_reason = VALUES(archived_reason)
+    ");
+    $historyUpsert->execute([
+      $id,
+      $studentId,
+      $scholarshipId,
+      $scholarshipTitle !== '' ? $scholarshipTitle : 'Scholarship',
+      $programType,
+      $status,
+      (string)$app['submission_date'],
+      $now,
+      'Rejected'
+    ]);
+  } else {
+    $pdo->prepare("DELETE FROM student_application_history WHERE application_id = ? AND archived_reason = 'Rejected'")->execute([$id]);
   }
 
   $pdo->commit();

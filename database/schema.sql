@@ -74,6 +74,49 @@ CREATE TABLE IF NOT EXISTS rejected_applicants (
   CONSTRAINT fk_rejected_scholarship FOREIGN KEY (scholarship_id) REFERENCES scholarships(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS scholarship_history (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  scholarship_id VARCHAR(36) NOT NULL,
+  title VARCHAR(255) NOT NULL,
+  program_type VARCHAR(50) NULL,
+  ended_at DATETIME NOT NULL,
+  ended_by VARCHAR(36) NULL,
+  total_applicants INT NOT NULL DEFAULT 0,
+  granted_applicants INT NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_history_scholarship (scholarship_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS scholarship_history_applicants (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  history_id BIGINT UNSIGNED NOT NULL,
+  application_id VARCHAR(36) NOT NULL,
+  student_id VARCHAR(36) NULL,
+  applicant_name VARCHAR(150) NULL,
+  applicant_email VARCHAR(190) NULL,
+  status VARCHAR(30) NOT NULL,
+  submission_date DATETIME NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uq_history_application (history_id, application_id),
+  CONSTRAINT fk_history_applicants_history FOREIGN KEY (history_id) REFERENCES scholarship_history(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS student_application_history (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  application_id VARCHAR(36) NOT NULL UNIQUE,
+  student_id VARCHAR(36) NOT NULL,
+  scholarship_id VARCHAR(36) NOT NULL,
+  scholarship_title VARCHAR(255) NOT NULL,
+  program_type VARCHAR(50) NULL,
+  status VARCHAR(30) NOT NULL,
+  submission_date DATETIME NULL,
+  archived_at DATETIME NOT NULL,
+  archived_reason VARCHAR(60) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS announcements (
   id VARCHAR(36) PRIMARY KEY,
   title VARCHAR(255) NOT NULL,

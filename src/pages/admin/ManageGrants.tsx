@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Search,
   Banknote,
@@ -66,6 +66,7 @@ export function ManageGrants() {
   };
   // Scholarships that have at least one approved application
   const scholarshipsWithApproved = scholarships.
+  filter((s) => s.status !== 'Closed').
   map((s) => {
     const approved = applications.filter(
       (a) => a.scholarshipId === s.id && a.status === 'Approved'
@@ -92,6 +93,13 @@ export function ManageGrants() {
   const selectedScholarship = scholarships.find(
     (s) => s.id === selectedScholarshipId
   );
+  useEffect(() => {
+    if (!selectedScholarshipId) return;
+    if (!selectedScholarship || selectedScholarship.status === 'Closed') {
+      setSelectedScholarshipId(null);
+      setSelected(null);
+    }
+  }, [selectedScholarshipId, selectedScholarship]);
   const beneficiaries = selectedScholarshipId ?
   applications.
   filter(

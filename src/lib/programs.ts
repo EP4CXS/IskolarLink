@@ -11,8 +11,18 @@ export const SCHOLARSHIP_PROGRAMS: {
 
 export function detectProgramFromTitle(title: string): ScholarshipProgramKey | null {
   const upper = (title || '').toUpperCase();
-  // longer keys first
-  const keys: ScholarshipProgramKey[] = ['CHED-CUSCHO', 'CHED - TES', 'CHED-TDP'];
-  return (keys.find((k) => upper.includes(k)) as ScholarshipProgramKey | undefined) ?? null;
+  if (upper.includes('CHED-CUSCHO') || upper.includes('CUSCHO')) return 'CHED-CUSCHO';
+  if (
+    upper.includes('CHED - TES') ||
+    upper.includes('CHED-TES') ||
+    upper.includes('TERTIARY EDUCATION SUBSIDY') ||
+    upper.includes('TES')
+  ) {
+    return 'CHED - TES';
+  }
+  if (upper.includes('CHED-TDP') || upper.includes('TULONG DUNONG') || upper.includes('TDP')) {
+    return 'CHED-TDP';
+  }
+  return null;
 }
 

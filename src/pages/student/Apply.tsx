@@ -15,6 +15,30 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Button, Input, Textarea } from '../../components/ui';
 const STEPS = ['Personal Info', 'Academic Info', 'Documents', 'Review'];
 const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+const COURSE_OPTIONS = [
+  'College of Law',
+  'Bachelor of Secondary Education major in Science',
+  'Bachelor of Secondary Education major in Filipino',
+  'Bachelor of Secondary Education major in English',
+  'Bachelor of Physical Education',
+  'Bachelor of Elementary Education',
+  'Bachelor of Early Childhood Education',
+  'Batsilyer sa Sining ng Filipino',
+  'Bachelor of Science in Midwifery',
+  'Bachelor of Science in Mathematics',
+  'Bachelor of Science in Environmental Science',
+  'Bachelor of Science in Biology',
+  'Bachelor of Public Administration',
+  'Bachelor of Arts in Political Science',
+  'Bachelor of Arts in English',
+  'Bachelor of Arts in Economics',
+  'Bachelor of Science in Hospitality Management',
+  'Bachelor of Science in Business Administration major in Marketing Management',
+  'Bachelor of Science in Business Administration major in Human Resource Management',
+  'Bachelor of Science in Business Administration major in Financial Management',
+  'Bachelor of Science in Computer Science',
+  'Bachelor of Science in Civil Engineering'
+];
 const FAMILY_INCOME_RANGES = [
   '₱5,000 - ₱10,000',
   '₱20,000 - ₱30,000',
@@ -255,12 +279,23 @@ export function Apply() {
               Provide your current academic details.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <Input
-              label="Course / Program *"
-              value={course}
-              onChange={(e) => setCourse(e.target.value)}
-              placeholder="e.g. BS Computer Science"
-              required />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Course / Program *
+                </label>
+                <select
+                  value={course}
+                  onChange={(e) => setCourse(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500"
+                  required>
+                  <option value="">Select course/program...</option>
+                  {COURSE_OPTIONS.map((courseOption) =>
+                  <option key={courseOption} value={courseOption}>
+                      {courseOption}
+                    </option>
+                  )}
+                </select>
+              </div>
             
               <Input
               label="Year Level *"

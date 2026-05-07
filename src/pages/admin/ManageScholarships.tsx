@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Plus,
   Pencil,
@@ -12,8 +12,10 @@ import {
   ArrowLeft } from
 'lucide-react';
 import { useData } from '../../context/DataContext';
+import { useAuth } from '../../context/AuthContext';
 import { Card, Button, Input, Textarea, Badge } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
+import { apiListScholarshipHistory, ApiScholarshipHistory } from '../../lib/api';
 import { Scholarship } from '../../types';
 import { toast } from 'sonner';
 type ProgramType = 'CHED - TES' | 'CHED-CUSCHO' | 'CHED-TDP';
@@ -76,16 +78,18 @@ export function ManageScholarships() {
     addScholarship,
     updateScholarship,
     deleteScholarship,
-    applications,
-    users
+    applications
   } = useData();
+  const { user: adminUser } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [confirmDelete, setConfirmDelete] = useState<Scholarship | null>(null);
   const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
-  const [historyScholarship, setHistoryScholarship] = useState<Scholarship | null>(null);
+  const [historyScholarship, setHistoryScholarship] = useState<ApiScholarshipHistory | null>(null);
+  const [historyRecords, setHistoryRecords] = useState<ApiScholarshipHistory[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [historyYearFilter, setHistoryYearFilter] = useState<string>('all');
   const [historyTypeFilter, setHistoryTypeFilter] = useState<string>('all');
   const detectProgram = (title: string): ProgramType | '' => {
@@ -96,15 +100,14 @@ export function ManageScholarships() {
     return match?.key || '';
   };
   const activeScholarships = scholarships.filter((s) => s.status !== 'Closed');
-  const endedScholarships = scholarships.filter((s) => s.status === 'Closed');
   const historyYears = Array.from(
     new Set(
-      endedScholarships.map((s) => new Date(s.deadline).getFullYear().toString())
+      historyRecords.map((h) => new Date(h.endedAt).getFullYear().toString())
     )
   ).sort((a, b) => Number(b) - Number(a));
-  const filteredEndedScholarships = endedScholarships.filter((s) => {
-    const year = new Date(s.deadline).getFullYear().toString();
-    const type = detectProgram(s.title) || 'Other';
+  const filteredHistoryRecords = historyRecords.filter((h) => {
+    const year = new Date(h.endedAt).getFullYear().toString();
+    const type = h.programType || 'Other';
     const matchesYear = historyYearFilter === 'all' || year === historyYearFilter;
     const matchesType = historyTypeFilter === 'all' || type === historyTypeFilter;
     return matchesYear && matchesType;
@@ -112,6 +115,24 @@ export function ManageScholarships() {
   const filtered = activeScholarships.filter((s) =>
   s.title.toLowerCase().includes(searchTerm.toLowerCase())
   );
+  const loadHistory = async (silent = false) => {
+    if (!silent) setHistoryLoading(true);
+    try {
+      const history = await apiListScholarshipHistory();
+      setHistoryRecords(history);
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to load scholarship history');
+    } finally {
+      if (!silent) setHistoryLoading(false);
+    }
+  };
+  useEffect(() => {
+    void loadHistory(true);
+  }, []);
+  useEffect(() => {
+    if (!isHistoryListOpen && !historyScholarship) return;
+    void loadHistory();
+  }, [isHistoryListOpen, historyScholarship]);
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -183,7 +204,8 @@ export function ManageScholarships() {
   const handleDelete = async () => {
     if (confirmDelete) {
       try {
-        await deleteScholarship(confirmDelete.id);
+        await deleteScholarship(confirmDelete.id, adminUser?.id);
+        await loadHistory(true);
         setConfirmDelete(null);
         toast.success('Scholarship marked as ended');
       } catch (err: any) {
@@ -194,12 +216,14 @@ export function ManageScholarships() {
   const getApplicantCount = (id: string) =>
   applications.filter((a) => a.scholarshipId === id).length;
   const historyApplicants = historyScholarship ?
-  applications.
-  filter((a) => a.scholarshipId === historyScholarship.id).
-  sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()) :
+  [...historyScholarship.applicants].sort(
+    (a, b) => new Date(b.submissionDate || 0).getTime() - new Date(a.submissionDate || 0).getTime()
+  ) :
   [];
-  const grantedApplicants = historyApplicants.filter((a) => a.status === 'Approved');
-  const grantedApplicantsCount = historyApplicants.filter((a) => a.status === 'Approved').length;
+  const grantedApplicants = historyApplicants.filter(
+    (a) => ['approved', 'granted'].includes((a.status || '').toLowerCase())
+  );
+  const grantedApplicantsCount = grantedApplicants.length;
   const selectedProgram = PROGRAMS.find((p) => p.key === form.programType);
   return (
     <div className="space-y-6">
@@ -217,7 +241,7 @@ export function ManageScholarships() {
             type="button"
             variant="outline"
             onClick={() => setIsHistoryListOpen(true)}>
-            View Scholarship History ({endedScholarships.length})
+            View Scholarship History ({historyRecords.length})
           </Button>
           <Button onClick={openCreate} className="gap-2">
             <Plus className="w-4 h-4" /> New Scholarship
@@ -297,7 +321,7 @@ export function ManageScholarships() {
               className="text-red-600 border-red-200 hover:bg-red-50 gap-1"
               onClick={() => setConfirmDelete(s)}>
               
-                  <Trash2 className="w-3.5 h-3.5" /> Delete
+                  <Trash2 className="w-3.5 h-3.5" /> End
                 </Button>
               </div>
             </Card>
@@ -528,7 +552,9 @@ export function ManageScholarships() {
         title="Ended Scholarship History"
         maxWidth="max-w-4xl">
         
-        {endedScholarships.length > 0 ?
+        {historyLoading ?
+        <p className="text-sm text-slate-500">Loading scholarship history...</p> :
+        historyRecords.length > 0 ?
         <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
@@ -563,24 +589,21 @@ export function ManageScholarships() {
                 </select>
               </div>
             </div>
-            {filteredEndedScholarships.length > 0 ?
+            {filteredHistoryRecords.length > 0 ?
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {filteredEndedScholarships.map((s) => {
-            const grantedCount = applications.filter(
-              (a) => a.scholarshipId === s.id && a.status === 'Approved'
-            ).length;
+                {filteredHistoryRecords.map((h) => {
             return (
               <div
-                key={`history-list-${s.id}`}
+                key={`history-list-${h.id}`}
                 className="p-4 bg-white rounded-lg border border-slate-200">
                 <p className="text-sm font-semibold text-slate-900 line-clamp-2">
-                  {s.title}
+                  {h.title}
                 </p>
                 <p className="text-xs text-slate-500 mt-1">
-                  Total applicants: {getApplicantCount(s.id)}
+                  Total applicants: {h.totalApplicants}
                 </p>
                 <p className="text-xs text-green-700 mt-1">
-                  Granted applicants: {grantedCount}
+                  Granted applicants: {h.grantedApplicants}
                 </p>
                 <Button
                   type="button"
@@ -589,7 +612,7 @@ export function ManageScholarships() {
                   className="mt-3 w-full"
                   onClick={() => {
                   setIsHistoryListOpen(false);
-                  setHistoryScholarship(s);
+                  setHistoryScholarship(h);
                 }}>
                   View Applicant History
                 </Button>
@@ -636,21 +659,19 @@ export function ManageScholarships() {
 
               <div className="mt-3 space-y-2">
                   {grantedApplicants.map((app) => {
-                  const student = users.find((u) => u.id === app.studentId);
-                  const applicantName = app.answers?.fullName || student?.name || 'N/A';
                   return (
                     <div
-                      key={`granted-${app.id}`}
+                      key={`granted-${app.applicationId}`}
                       className="p-3 rounded-lg bg-white border border-green-200 flex items-center justify-between gap-3">
                       <div className="min-w-0">
                         <p className="text-sm font-semibold text-slate-900 truncate">
-                          {applicantName}
+                          {app.name || 'N/A'}
                         </p>
                         <p className="text-xs text-slate-500 truncate">
-                          {student?.email || app.answers?.email || 'No email'}
+                          {app.email || 'No email'}
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
-                          Applied: {new Date(app.submissionDate).toLocaleDateString()} · ID: {app.id.toUpperCase()}
+                          Applied: {app.submissionDate ? new Date(app.submissionDate).toLocaleDateString() : 'N/A'} · ID: {app.applicationId.toUpperCase()}
                         </p>
                       </div>
                       <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">

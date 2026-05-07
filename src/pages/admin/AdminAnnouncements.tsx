@@ -13,6 +13,7 @@ import { useData } from '../../context/DataContext';
 import { useAuth } from '../../context/AuthContext';
 import { Card, Button, Input, Textarea, Badge } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
+import { SCHOLARSHIP_PROGRAMS } from '../../lib/programs';
 export function AdminAnnouncements() {
   const {
     announcements,
@@ -73,6 +74,8 @@ export function AdminAnnouncements() {
   );
   const getAudienceLabel = (target: string) => {
     if (target === 'all') return 'All Scholarships';
+    const program = SCHOLARSHIP_PROGRAMS.find((p) => p.key === target);
+    if (program) return program.label;
     const scholarship = scholarships.find((s) => s.id === target);
     return scholarship?.title || target;
 
@@ -177,16 +180,16 @@ export function AdminAnnouncements() {
                 className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                 
                 <option value="all">All Beneficiaries</option>
-                {scholarships.map((s) =>
-                <option key={s.id} value={s.id}>
-                    {s.title}
+                {SCHOLARSHIP_PROGRAMS.map((p) =>
+                <option key={p.key} value={p.key}>
+                    {p.label}
                   </option>
                 )}
               </select>
               <p className="text-xs text-gray-500 mt-1.5">
                 {audience === 'all' ?
                 'This announcement will be visible to all beneficiaries.' :
-                'Only beneficiaries of this scholarship will see this announcement.'}
+                'Only approved beneficiaries of this scholarship program will see this announcement.'}
               </p>
             </div>
             <div className="flex gap-2">
