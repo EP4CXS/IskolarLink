@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { MessageCircle, X, Send, Bot, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 interface Message {
@@ -8,30 +8,112 @@ interface Message {
 }
 const FAQ_RULES = [
 {
-  keywords: ['deadline', 'when'],
+  keywords: [
+  'scholarship available',
+  'scholarships available',
+  'available scholarship',
+  'available scholarships',
+  'open scholarship',
+  'open scholarships',
+  'is there scholarship',
+  'are there scholarships',
+  'what scholarship',
+  'what scholarships',
+  'list of scholarship',
+  'list of scholarships'
+  ],
+  answer:
+  'You can check available scholarship programs in the "Scholarships" page. Open scholarships are listed there with details, deadlines, and requirements.'
+},
+{
+  keywords: [
+  'how to apply',
+  'apply scholarship',
+  'application process',
+  'how can i apply',
+  'steps to apply',
+  'submit application',
+  'apply now',
+  'where to apply'
+  ],
+  answer:
+  'Go to the Scholarships page, choose a scholarship, then click Apply. Fill in Personal Info, Academic Info, upload required documents (COR, Student ID, Prospectus, Certificate of Indigency), review your details, then submit.'
+},
+{
+  keywords: ['deadline', 'when deadline', 'application period'],
   answer:
   'Most scholarship deadlines are around August 15th, but please check the specific scholarship details page for exact dates.'
 },
 {
-  keywords: ['requirements', 'documents', 'need'],
+  keywords: ['requirements', 'documents', 'need', 'requirements needed', 'required docs'],
   answer:
-  'Common requirements include your Transcript of Records, Certificate of Indigency (if applicable), and a valid ID. You can upload these in your Profile or during application.'
+  'Common requirements include Certificate of Registration (COR), Student ID, Prospectus, and Certificate of Indigency. Upload these in the application documents step.'
 },
 {
-  keywords: ['status', 'track'],
+  keywords: ['status', 'track', 'application status', 'track application', 'where is my application'],
   answer:
   'You can track your application status in the "My Applications" tab. The statuses are Pending, Under Review, Screened, Approved, or Rejected.'
 },
 {
-  keywords: ['eligibility', 'gpa', 'grades'],
+  keywords: ['eligibility', 'gpa', 'grades', 'qualified', 'qualification', 'who can apply'],
   answer:
   'Eligibility varies per scholarship. The system will automatically check your profile GPA and course against the scholarship criteria when you try to apply.'
 },
 {
-  keywords: ['hello', 'hi', 'help'],
+  keywords: ['announcement', 'announcements', 'target audience', 'beneficiary'],
   answer:
-  'Hello! I am the IskolarLink Assistant. You can ask me about deadlines, requirements, application status, or eligibility.'
+  'Announcements can be posted by admins and targeted by scholarship program (TES, CUSCHO, TDP) or to all. Targeted announcements are shown to approved beneficiaries.'
+},
+{
+  keywords: ['grant', 'disbursement', 'release grant', 'grant release', 'when grant release', 'next grant release'],
+  answer:
+  'Admins release grants in Grant Disbursement for approved beneficiaries. Transactions are recorded and visible in application details as transaction history.'
+},
+{
+  keywords: ['history', 'application history', 'past scholarship', 'archive', 'archived application'],
+  answer:
+  'Students can open My Applications > View History to see past scholarship records. History is archived and stored in the database when a scholarship ends or an application is rejected.'
+},
+{
+  keywords: ['end scholarship', 'delete scholarship', 'remove scholarship'],
+  answer:
+  'Ending a scholarship does not delete applicant history. It marks the scholarship as Closed, archives applicant records, and removes it from active disbursement.'
+},
+{
+  keywords: ['report', 'export', 'csv', 'download report', 'analytics'],
+  answer:
+  'In Reports & Analytics, Export Report downloads a CSV file containing applicant and beneficiary records based on current filters.'
+},
+{
+  keywords: ['profile', 'update profile', 'student profile', 'edit profile', 'change profile'],
+  answer:
+  'Students can update profile info such as name, avatar, course/program, year level, phone number, and address. Changes are saved to the database.'
+},
+{
+  keywords: ['hello', 'hi', 'help', 'assist'],
+  answer:
+  'Hello! I am the IskolarLink Assistant. Ask me about applications, announcements, grant disbursement, histories, reports, and profile updates.'
 }];
+
+function getBestFaqAnswer(input: string): string {
+  const normalized = input.toLowerCase().trim();
+  let bestScore = 0;
+  let bestAnswer = '';
+
+  for (const rule of FAQ_RULES) {
+    const score = rule.keywords.reduce(
+      (acc, kw) => (normalized.includes(kw.toLowerCase()) ? acc + 1 : acc),
+      0
+    );
+    if (score > bestScore) {
+      bestScore = score;
+      bestAnswer = rule.answer;
+    }
+  }
+
+  if (bestScore > 0) return bestAnswer;
+  return 'I can help with system features: application steps, requirements, status tracking, announcements, grant disbursement, application history, scholarship end/archive flow, reports export, and profile updates.';
+}
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -63,17 +145,9 @@ export function Chatbot() {
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
-    // Simple rule-based matching
+    // Rule-based matching with best keyword score
     setTimeout(() => {
-      const lowerInput = userMsg.text.toLowerCase();
-      let foundAnswer =
-      "I'm not quite sure about that. Please check the announcements or contact the admin office for specific inquiries.";
-      for (const rule of FAQ_RULES) {
-        if (rule.keywords.some((kw) => lowerInput.includes(kw))) {
-          foundAnswer = rule.answer;
-          break;
-        }
-      }
+      const foundAnswer = getBestFaqAnswer(userMsg.text);
       setMessages((prev) => [
       ...prev,
       {
