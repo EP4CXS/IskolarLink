@@ -76,16 +76,18 @@ export function ManageScholarships() {
     addScholarship,
     updateScholarship,
     deleteScholarship,
-    applications
+    applications,
+    users
   } = useData();
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [confirmDelete, setConfirmDelete] = useState<Scholarship | null>(null);
-  const filtered = scholarships.filter((s) =>
-  s.title.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const [isHistoryListOpen, setIsHistoryListOpen] = useState(false);
+  const [historyScholarship, setHistoryScholarship] = useState<Scholarship | null>(null);
+  const [historyYearFilter, setHistoryYearFilter] = useState<string>('all');
+  const [historyTypeFilter, setHistoryTypeFilter] = useState<string>('all');
   const detectProgram = (title: string): ProgramType | '' => {
     const upper = title.toUpperCase();
     // Check longer keys first so CHED-CUSCHO matches before TES, etc.
@@ -93,6 +95,23 @@ export function ManageScholarships() {
     const match = sorted.find((p) => upper.includes(p.key));
     return match?.key || '';
   };
+  const activeScholarships = scholarships.filter((s) => s.status !== 'Closed');
+  const endedScholarships = scholarships.filter((s) => s.status === 'Closed');
+  const historyYears = Array.from(
+    new Set(
+      endedScholarships.map((s) => new Date(s.deadline).getFullYear().toString())
+    )
+  ).sort((a, b) => Number(b) - Number(a));
+  const filteredEndedScholarships = endedScholarships.filter((s) => {
+    const year = new Date(s.deadline).getFullYear().toString();
+    const type = detectProgram(s.title) || 'Other';
+    const matchesYear = historyYearFilter === 'all' || year === historyYearFilter;
+    const matchesType = historyTypeFilter === 'all' || type === historyTypeFilter;
+    return matchesYear && matchesType;
+  });
+  const filtered = activeScholarships.filter((s) =>
+  s.title.toLowerCase().includes(searchTerm.toLowerCase())
+  );
   const openCreate = () => {
     setEditingId(null);
     setForm(emptyForm);
@@ -174,6 +193,13 @@ export function ManageScholarships() {
   };
   const getApplicantCount = (id: string) =>
   applications.filter((a) => a.scholarshipId === id).length;
+  const historyApplicants = historyScholarship ?
+  applications.
+  filter((a) => a.scholarshipId === historyScholarship.id).
+  sort((a, b) => new Date(b.submissionDate).getTime() - new Date(a.submissionDate).getTime()) :
+  [];
+  const grantedApplicants = historyApplicants.filter((a) => a.status === 'Approved');
+  const grantedApplicantsCount = historyApplicants.filter((a) => a.status === 'Approved').length;
   const selectedProgram = PROGRAMS.find((p) => p.key === form.programType);
   return (
     <div className="space-y-6">
@@ -186,9 +212,17 @@ export function ManageScholarships() {
             Create and manage scholarship opportunities.
           </p>
         </div>
-        <Button onClick={openCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> New Scholarship
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setIsHistoryListOpen(true)}>
+            View Scholarship History ({endedScholarships.length})
+          </Button>
+          <Button onClick={openCreate} className="gap-2">
+            <Plus className="w-4 h-4" /> New Scholarship
+          </Button>
+        </div>
       </div>
 
       <Card className="p-4">
@@ -486,6 +520,150 @@ export function ManageScholarships() {
             End Scholarship
           </Button>
         </div>
+      </Modal>
+
+      <Modal
+        isOpen={isHistoryListOpen}
+        onClose={() => setIsHistoryListOpen(false)}
+        title="Ended Scholarship History"
+        maxWidth="max-w-4xl">
+        
+        {endedScholarships.length > 0 ?
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Filter by Year
+                </label>
+                <select
+                  value={historyYearFilter}
+                  onChange={(e) => setHistoryYearFilter(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  <option value="all">All Years</option>
+                  {historyYears.map((year) =>
+                  <option key={year} value={year}>
+                      {year}
+                    </option>
+                  )}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Filter by Scholarship Type
+                </label>
+                <select
+                  value={historyTypeFilter}
+                  onChange={(e) => setHistoryTypeFilter(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                  <option value="all">All Types</option>
+                  <option value="CHED - TES">TES</option>
+                  <option value="CHED-CUSCHO">CUSCHO</option>
+                  <option value="CHED-TDP">TDP</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+            </div>
+            {filteredEndedScholarships.length > 0 ?
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {filteredEndedScholarships.map((s) => {
+            const grantedCount = applications.filter(
+              (a) => a.scholarshipId === s.id && a.status === 'Approved'
+            ).length;
+            return (
+              <div
+                key={`history-list-${s.id}`}
+                className="p-4 bg-white rounded-lg border border-slate-200">
+                <p className="text-sm font-semibold text-slate-900 line-clamp-2">
+                  {s.title}
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Total applicants: {getApplicantCount(s.id)}
+                </p>
+                <p className="text-xs text-green-700 mt-1">
+                  Granted applicants: {grantedCount}
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 w-full"
+                  onClick={() => {
+                  setIsHistoryListOpen(false);
+                  setHistoryScholarship(s);
+                }}>
+                  View Applicant History
+                </Button>
+              </div>);
+
+          })}
+              </div> :
+
+            <p className="text-sm text-slate-500">
+                No ended scholarships match the selected filters.
+              </p>
+            }
+          </div> :
+
+        <p className="text-sm text-slate-500">No ended scholarships yet.</p>
+        }
+      </Modal>
+
+      <Modal
+        isOpen={!!historyScholarship}
+        onClose={() => setHistoryScholarship(null)}
+        title="Scholarship Applicant History"
+        maxWidth="max-w-3xl">
+        
+        {historyScholarship &&
+        <div className="space-y-4">
+            <div className="p-4 rounded-lg border border-slate-200 bg-slate-50">
+              <h3 className="font-semibold text-slate-900">{historyScholarship.title}</h3>
+              <p className="text-sm text-slate-600 mt-1">
+                Total applicants: {historyApplicants.length}
+              </p>
+              <p className="text-sm text-green-700 mt-1">
+                Granted applicants: {grantedApplicantsCount}
+              </p>
+            </div>
+            <div className="p-4 rounded-lg border border-green-200 bg-green-50">
+              <h4 className="text-sm font-semibold text-green-800">
+                Granted Applicant History
+              </h4>
+              {grantedApplicants.length === 0 ?
+              <p className="text-sm text-green-700 mt-2">
+                  No granted applicants yet.
+                </p> :
+
+              <div className="mt-3 space-y-2">
+                  {grantedApplicants.map((app) => {
+                  const student = users.find((u) => u.id === app.studentId);
+                  const applicantName = app.answers?.fullName || student?.name || 'N/A';
+                  return (
+                    <div
+                      key={`granted-${app.id}`}
+                      className="p-3 rounded-lg bg-white border border-green-200 flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold text-slate-900 truncate">
+                          {applicantName}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {student?.email || app.answers?.email || 'No email'}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          Applied: {new Date(app.submissionDate).toLocaleDateString()} · ID: {app.id.toUpperCase()}
+                        </p>
+                      </div>
+                      <span className="text-xs font-semibold text-green-700 bg-green-100 px-2 py-1 rounded-full">
+                        Granted
+                      </span>
+                    </div>);
+
+                })}
+                </div>
+              }
+            </div>
+          </div>
+        }
       </Modal>
     </div>);
 
