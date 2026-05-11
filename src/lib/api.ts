@@ -304,3 +304,16 @@ export async function apiMarkNotificationRead(id: string): Promise<void> {
   });
 }
 
+export type ChatGroqMessage = {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+};
+
+export async function apiChatGroq(messages: ChatGroqMessage[]): Promise<string> {
+  const r = await jsonFetch<{ ok: boolean; message: string }>('/chat/groq.php', {
+    method: 'POST',
+    body: JSON.stringify({ messages }),
+  });
+  return r.message;
+}
+

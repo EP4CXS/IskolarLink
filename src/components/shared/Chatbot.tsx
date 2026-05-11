@@ -1,6 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import { MessageCircle, X, Send, Bot, User as UserIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { apiChatGroq, type ChatGroqMessage } from '../../lib/api';
+
+const ISKOLARLINK_SYSTEM_PROMPT = `You are the IskolarLink Assistant for a scholarship management web application used by students and admins.
+Help clearly and briefly with: browsing and applying for scholarships; required documents (COR, Student ID, Prospectus, Certificate of Indigency); application statuses (Pending, Under Review, Screened, Approved, Rejected) and where to track them (My Applications); announcements and targeted audiences; grant disbursement and transaction history; archived application history when scholarships end; exporting reports (CSV); updating student profile (name, avatar, course, year level, contact, address).
+If the user asks for data you cannot see (exact deadlines, live slot counts, their personal application state), tell them to open the relevant page in the app for up-to-date information.`;
 interface Message {
   id: string;
   text: string;
@@ -127,6 +132,7 @@ export function Chatbot() {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const requestInFlightRef = useRef(false);
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({
       behavior: 'smooth'
@@ -135,29 +141,57 @@ export function Chatbot() {
   useEffect(() => {
     scrollToBottom();
   }, [messages, isTyping]);
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    const text = input.trim();
+    if (!text || requestInFlightRef.current) return;
+
+    requestInFlightRef.current = true;
+
     const userMsg: Message = {
       id: Date.now().toString(),
-      text: input,
-      sender: 'user'
+      text,
+      sender: 'user',
     };
+    const historyForApi = [...messages, userMsg];
+
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
-    // Rule-based matching with best keyword score
-    setTimeout(() => {
-      const foundAnswer = getBestFaqAnswer(userMsg.text);
+
+    const groqMessages: ChatGroqMessage[] = [
+      { role: 'system', content: ISKOLARLINK_SYSTEM_PROMPT },
+      ...historyForApi.map((m) => ({
+        role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+        content: m.text,
+      })),
+    ];
+
+    try {
+      const reply = await apiChatGroq(groqMessages);
       setMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
-        text: foundAnswer,
-        sender: 'bot'
-      }]
-      );
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text: reply,
+          sender: 'bot',
+        },
+      ]);
+    } catch {
+      const fallback = getBestFaqAnswer(text);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          text:
+            "I couldn't reach the AI assistant. Here's a quick answer from our built-in help: " +
+            fallback,
+          sender: 'bot',
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+      requestInFlightRef.current = false;
+    }
   };
   return (
     <>
@@ -198,7 +232,7 @@ export function Chatbot() {
                 <Bot className="w-6 h-6" />
                 <div>
                   <h3 className="font-semibold">IskolarLink Assistant</h3>
-                  <p className="text-xs text-sky-100">Online | Automated FAQ</p>
+                  <p className="text-xs text-sky-100">Groq AI · FAQ fallback if offline</p>
                 </div>
               </div>
               <button
@@ -269,7 +303,7 @@ export function Chatbot() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
                 placeholder="Ask a question..."
                 className="flex-1 px-3 py-2 bg-gray-100 border-transparent rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white transition-colors" />
               
