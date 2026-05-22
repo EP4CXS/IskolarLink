@@ -5,6 +5,7 @@ require_once __DIR__ . '/../_lib/cors.php';
 require_once __DIR__ . '/../_lib/db.php';
 require_once __DIR__ . '/../_lib/response.php';
 require_once __DIR__ . '/../_lib/uuid.php';
+require_once __DIR__ . '/../_lib/email_notify.php';
 
 $raw = file_get_contents('php://input');
 $body = is_string($raw) ? json_decode($raw, true) : null;
@@ -33,8 +34,11 @@ try {
   ");
   $stmt->execute([$id, $title, $content, $authorId, $targetAudience, $category, $release]);
 
+  $notifyStats = email_notify_announcement(db(), $title, $content, $targetAudience);
+
   json_response([
     'ok' => true,
+    'notify' => $notifyStats,
     'announcement' => [
       'id' => $id,
       'title' => $title,

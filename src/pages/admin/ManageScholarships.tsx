@@ -18,7 +18,18 @@ import { Modal } from '../../components/ui/Modal';
 import { apiListScholarshipHistory, ApiScholarshipHistory } from '../../lib/api';
 import { Scholarship } from '../../types';
 import { toast } from 'sonner';
-type ProgramType = 'CHED - TES' | 'CHED-CUSCHO' | 'CHED-TDP';
+import { SCHOLARSHIP_PROGRAM_CONTENT } from '../../data/scholarshipPrograms';
+import { ScholarshipProgramKey } from '../../lib/programs';
+
+type ProgramType = ScholarshipProgramKey;
+
+function shortDescriptionFor(key: ProgramType): string {
+  return (
+    SCHOLARSHIP_PROGRAM_CONTENT.find((p) => p.programKey === key)
+      ?.shortDescription ?? ''
+  );
+}
+
 const PROGRAMS: {
   key: ProgramType;
   name: string;
@@ -27,32 +38,31 @@ const PROGRAMS: {
   icon: React.ElementType;
   color: string;
 }[] = [
-{
-  key: 'CHED - TES',
-  name: 'CHED - TES',
-  fullName: 'Tertiary Education Subsidy',
-  description: 'Government subsidy for tertiary students under UniFAST.',
-  icon: GraduationCap,
-  color: 'bg-sky-50 text-sky-600 border-sky-200'
-},
-{
-  key: 'CHED-CUSCHO',
-  name: 'CHED-CUSCHO',
-  fullName: 'CHED-CUSCHO Scholarship Program',
-  description:
-  'CHED-supported cooperative scholarship for qualified beneficiaries.',
-  icon: Award,
-  color: 'bg-indigo-50 text-indigo-600 border-indigo-200'
-},
-{
-  key: 'CHED-TDP',
-  name: 'CHED-TDP',
-  fullName: 'CHED-TDP (Tulong Dunong Program)',
-  description:
-  'CHED financial assistance grant for qualified college students.',
-  icon: BookOpen,
-  color: 'bg-cyan-50 text-cyan-600 border-cyan-200'
-}];
+  {
+    key: 'CHED - TES',
+    name: 'CHED - TES',
+    fullName: 'Tertiary Education Subsidy',
+    description: shortDescriptionFor('CHED - TES'),
+    icon: GraduationCap,
+    color: 'bg-sky-50 text-sky-600 border-sky-200'
+  },
+  {
+    key: 'CHED-CUSCHO',
+    name: 'CHED-CUSCHO',
+    fullName: 'CHED Coconut Scholarship Program (COSCHO)',
+    description: shortDescriptionFor('CHED-CUSCHO'),
+    icon: Award,
+    color: 'bg-indigo-50 text-indigo-600 border-indigo-200'
+  },
+  {
+    key: 'CHED-TDP',
+    name: 'CHED-TDP',
+    fullName: 'CHED-TDP (Tulong Dunong Program)',
+    description: shortDescriptionFor('CHED-TDP'),
+    icon: BookOpen,
+    color: 'bg-cyan-50 text-cyan-600 border-cyan-200'
+  }
+];
 
 interface FormState {
   programType: ProgramType | '';

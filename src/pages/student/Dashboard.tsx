@@ -14,6 +14,7 @@ import { useData } from '../../context/DataContext';
 import { Card, StatusBadge } from '../../components/ui';
 import { ApplicationStatus } from '../../types';
 import { detectProgramFromTitle } from '../../lib/programs';
+import { isAnnouncementVisibleToStudent } from '../../lib/announcements';
 interface ActivityItem {
   id: string;
   date: string;
@@ -37,14 +38,14 @@ export function StudentDashboard() {
       .map((s) => detectProgramFromTitle(s.title))
       .filter(Boolean) as string[]
   );
-  const visibleAnnouncements = announcements.
-  filter(
-    (a) =>
-    a.targetAudience === 'all' ||
-    myBeneficiaryScholarshipIds.has(a.targetAudience) ||
-    myPrograms.has(a.targetAudience)
-  ).
-  sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const visibleAnnouncements = announcements
+    .filter((a) =>
+      isAnnouncementVisibleToStudent(a, {
+        beneficiaryScholarshipIds: myBeneficiaryScholarshipIds,
+        beneficiaryPrograms: myPrograms
+      })
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const activeScholarships = scholarships.filter((s) => s.status === 'Active');
   const stats = {
     total: myApplications.length,

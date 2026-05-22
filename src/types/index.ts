@@ -108,8 +108,8 @@ export interface Announcement {
   content: string;
   date: string;
   authorId: string;
-  // 'all' = visible to everyone; otherwise scholarship id
-  targetAudience: 'all' | string;
+  // 'all-students' = every student; 'all' = approved beneficiaries; else program key or scholarship id
+  targetAudience: 'all' | 'all-students' | string;
   category?: 'general' | 'grant-release';
   grantReleaseDate?: string;
 }

@@ -241,12 +241,16 @@ export async function apiUpdateApplicationStatus(payload: {
 export async function apiDisburseGrant(payload: {
   id: string;
   details: any;
-}): Promise<ApiApplication> {
-  const r = await jsonFetch<{ ok: boolean; application: ApiApplication }>('/applications/disburse.php', {
+}): Promise<{ application: ApiApplication; notify?: ApiGrantNotifyResult }> {
+  const r = await jsonFetch<{
+    ok: boolean;
+    application: ApiApplication;
+    notify?: ApiGrantNotifyResult;
+  }>('/applications/disburse.php', {
     method: 'POST',
     body: JSON.stringify(payload),
   });
-  return r.application;
+  return { application: r.application, notify: r.notify };
 }
 
 export async function apiListAnnouncements(): Promise<ApiAnnouncement[]> {
@@ -254,12 +258,28 @@ export async function apiListAnnouncements(): Promise<ApiAnnouncement[]> {
   return r.announcements;
 }
 
-export async function apiCreateAnnouncement(payload: Omit<ApiAnnouncement, 'id' | 'date'>): Promise<ApiAnnouncement> {
-  const r = await jsonFetch<{ ok: boolean; announcement: ApiAnnouncement }>('/announcements/create.php', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  });
-  return r.announcement;
+export type ApiNotifyStats = {
+  notifications?: number;
+  emailsSent?: number;
+  emailsFailed?: number;
+};
+
+export type ApiGrantNotifyResult = {
+  notification?: boolean;
+  emailSent?: boolean;
+};
+
+export async function apiCreateAnnouncement(
+  payload: Omit<ApiAnnouncement, 'id' | 'date'>
+): Promise<{ announcement: ApiAnnouncement; notify?: ApiNotifyStats }> {
+  const r = await jsonFetch<{ ok: boolean; announcement: ApiAnnouncement; notify?: ApiNotifyStats }>(
+    '/announcements/create.php',
+    {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }
+  );
+  return { announcement: r.announcement, notify: r.notify };
 }
 
 export async function apiUpdateAnnouncement(payload: {

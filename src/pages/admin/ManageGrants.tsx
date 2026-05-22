@@ -510,8 +510,8 @@ export function ManageGrants() {
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800 flex items-start gap-2">
                   <Send className="w-4 h-4 flex-shrink-0 mt-0.5" />
                   <span>
-                    An in-app notification will be sent to the beneficiary
-                    immediately after release.
+                    The beneficiary will receive an in-app notification and an
+                    email at their signup address immediately after release.
                   </span>
                 </div>
 

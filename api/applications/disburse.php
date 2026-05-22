@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../_lib/cors.php';
 require_once __DIR__ . '/../_lib/db.php';
 require_once __DIR__ . '/../_lib/response.php';
+require_once __DIR__ . '/../_lib/email_notify.php';
 
 $raw = file_get_contents('php://input');
 $body = is_string($raw) ? json_decode($raw, true) : null;
@@ -40,8 +41,25 @@ try {
   $answers = json_decode((string)($app['answers_json'] ?? '{}'), true);
   $rubric = json_decode((string)($app['rubric_json'] ?? 'null'), true);
 
+  $scholarshipTitle = null;
+  $schStmt = $pdo->prepare('SELECT title FROM scholarships WHERE id = ? LIMIT 1');
+  $schStmt->execute([(string)$app['scholarship_id']]);
+  $schRow = $schStmt->fetch();
+  if ($schRow) {
+    $scholarshipTitle = (string)$schRow['title'];
+  }
+
+  $notifyResult = email_notify_grant_disbursement(
+    $pdo,
+    (string)$app['student_id'],
+    $id,
+    $details,
+    $scholarshipTitle
+  );
+
   json_response([
     'ok' => true,
+    'notify' => $notifyResult,
     'application' => [
       'id' => (string)$app['id'],
       'studentId' => (string)$app['student_id'],

@@ -204,9 +204,24 @@ export function DataProvider({ children }: {children: ReactNode;}) {
     toast.success('Scholarship marked as ended');
   };
   const addAnnouncement = async (announcement: Omit<Announcement, 'id' | 'date'>) => {
-    const created = await apiCreateAnnouncement(announcement as any);
+    const { announcement: created, notify } = await apiCreateAnnouncement(announcement as any);
     setAnnouncements((prev) => [created as any, ...prev]);
-    toast.success('Announcement posted');
+    const notifs = await apiListNotifications();
+    setNotifications(notifs);
+    if (notify?.emailsSent && notify.emailsSent > 0) {
+      toast.success(
+        `Announcement posted. ${notify.emailsSent} email${notify.emailsSent === 1 ? '' : 's'} sent to beneficiaries.`
+      );
+    } else if (notify?.notifications && notify.notifications > 0) {
+      toast.success('Announcement posted. Beneficiaries notified in-app.');
+    } else {
+      toast.success('Announcement posted');
+    }
+    if (notify?.emailsFailed && notify.emailsFailed > 0) {
+      toast.warning(
+        `${notify.emailsFailed} email${notify.emailsFailed === 1 ? '' : 's'} could not be sent. Check MAIL_* settings in .env.`
+      );
+    }
   };
   const updateAnnouncement = async (
   id: string,
@@ -278,7 +293,7 @@ export function DataProvider({ children }: {children: ReactNode;}) {
     setUsers((prev) => prev.map((u) => (u.id === id ? (saved as any) : u)));
   };
   const disburseGrant = async (applicationId: string, details: GrantDisbursement) => {
-    const saved = await apiDisburseGrant({
+    const { application: saved, notify } = await apiDisburseGrant({
       id: applicationId,
       details
     });
@@ -288,14 +303,16 @@ export function DataProvider({ children }: {children: ReactNode;}) {
       return saved as any;
     })
     );
-    const app = saved as any;
-    await addNotification({
-      userId: app.studentId,
-      title: 'Scholarship Grant Released',
-      message: `Your grant of ₱${details.amount.toLocaleString()} has been released via ${details.method}. Reference: ${details.reference}.`,
-      link: `/student/applications/${app.id}`
-    });
-    toast.success('Grant disbursement recorded and student notified');
+    const notifs = await apiListNotifications();
+    setNotifications(notifs);
+    if (notify?.emailSent) {
+      toast.success('Grant released. Beneficiary notified by email and in-app.');
+    } else if (notify?.notification) {
+      toast.success('Grant released. Beneficiary notified in-app (email not sent — check MAIL_* in .env).');
+    } else {
+      toast.success('Grant disbursement recorded');
+      toast.warning('Could not notify beneficiary. Ensure they have a signup email and MAIL_* is configured.');
+    }
   };
   return (
     <DataContext.Provider

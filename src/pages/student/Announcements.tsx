@@ -5,6 +5,11 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Badge } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
 import { detectProgramFromTitle } from '../../lib/programs';
+import {
+  ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS,
+  isAnnouncementVisibleToStudent,
+  getAnnouncementAudienceLabel
+} from '../../lib/announcements';
 export function StudentAnnouncements() {
   const { announcements, applications, scholarships } = useData();
   const { user } = useAuth();
@@ -33,23 +38,18 @@ export function StudentAnnouncements() {
       .map((s) => detectProgramFromTitle(s.title))
       .filter(Boolean) as string[]
   );
-  // Visible: 'all' OR a scholarship/program where the student is an approved beneficiary
-  const visible = announcements.
-  filter(
-    (a) =>
-    a.targetAudience === 'all' ||
-    myBeneficiaryScholarshipIds.has(a.targetAudience) ||
-    myPrograms.has(a.targetAudience)
-  ).
-  sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  const visible = announcements
+    .filter((a) =>
+      isAnnouncementVisibleToStudent(a, {
+        beneficiaryScholarshipIds: myBeneficiaryScholarshipIds,
+        beneficiaryPrograms: myPrograms
+      })
+    )
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   const selectedAnnouncement =
   selectedAnnouncementId ? visible.find((a) => a.id === selectedAnnouncementId) || null : null;
-  const getAudienceLabel = (target: string) => {
-    if (target === 'all') return 'For all students';
-    const scholarship = scholarships.find((s) => s.id === target);
-    return scholarship?.title || target || 'Scholarship update';
-
-  };
+  const getAudienceLabel = (target: string) =>
+    getAnnouncementAudienceLabel(target, scholarships);
   const markAnnouncementAsRead = (id: string) => {
     setReadAnnouncementIds((prev) => {
       if (prev.includes(id)) return prev;
@@ -72,7 +72,7 @@ export function StudentAnnouncements() {
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Announcements</h1>
         <p className="text-gray-600 mt-1">
-          Updates relevant to you, including scholarships you've applied for.
+          Campus-wide updates and announcements for your scholarship programs.
         </p>
       </div>
 
@@ -85,14 +85,16 @@ export function StudentAnnouncements() {
             No announcements yet
           </h3>
           <p className="text-gray-500">
-            Get approved in a scholarship to receive targeted updates from
-            administrators.
+            Check back later for campus-wide updates and scholarship-specific
+            news from administrators.
           </p>
         </Card> :
 
       <div className="space-y-4">
           {visible.map((a) => {
-          const isAll = a.targetAudience === 'all';
+          const isAll =
+            a.targetAudience === ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS ||
+            a.targetAudience === 'all';
           const isRead = readAnnouncementIds.includes(a.id);
           return (
             <button
@@ -163,9 +165,11 @@ export function StudentAnnouncements() {
                   <div className="flex flex-wrap items-center gap-2 mt-2">
                     <Badge
                     variant={
-                    selectedAnnouncement.targetAudience === 'all' ?
-                    'info' :
-                    'success'
+                    selectedAnnouncement.targetAudience ===
+                      ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS ||
+                    selectedAnnouncement.targetAudience === 'all'
+                      ? 'info'
+                      : 'success'
                     }>
                       {getAudienceLabel(selectedAnnouncement.targetAudience)}
                     </Badge>

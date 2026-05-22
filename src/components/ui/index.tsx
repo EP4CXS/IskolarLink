@@ -91,18 +91,17 @@ export function Textarea({
 // Card
 export function Card({
   children,
-  className = ''
-
-
-
-}: {children: React.ReactNode;className?: string;}) {
+  className = '',
+  ...props
+}: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm ${className}`}>
-      
+      className={`rounded-xl border border-gray-200 bg-white text-gray-950 shadow-sm ${className}`}
+      {...props}
+    >
       {children}
-    </div>);
-
+    </div>
+  );
 }
 // Badge
 export function Badge({

@@ -21,6 +21,10 @@ import {
 import { useData } from '../../context/DataContext';
 import { Card, Button, StatusBadge } from '../../components/ui';
 import { toast } from 'sonner';
+import {
+  detectProgramFromTitle,
+  SCHOLARSHIP_PROGRAM_CHART_LABELS
+} from '../../lib/programs';
 export function Reports() {
   const { applications, scholarships, users } = useData();
   const [filterStatus, setFilterStatus] = useState<string>('all');
@@ -48,23 +52,34 @@ export function Reports() {
     ) :
     0
   };
-  // Group by scholarship for the bar chart
-  const byScholarship = scholarships.map((s) => ({
-    name: s.title.length > 18 ? s.title.substring(0, 18) + '…' : s.title,
-    approved: filtered.filter(
-      (a) => a.scholarshipId === s.id && a.status === 'Approved'
-    ).length,
-    rejected: filtered.filter(
-      (a) => a.scholarshipId === s.id && a.status === 'Rejected'
-    ).length,
-    pending: filtered.filter(
-      (a) =>
-      a.scholarshipId === s.id && (
-      a.status === 'Pending' ||
-      a.status === 'Under Review' ||
-      a.status === 'Screened')
-    ).length
-  }));
+  const applicationMatchesProgram = (
+    scholarshipId: string,
+    programKey: (typeof SCHOLARSHIP_PROGRAM_CHART_LABELS)[number]['key']
+  ) => {
+    const scholarship = scholarships.find((s) => s.id === scholarshipId);
+    if (!scholarship) return false;
+    return detectProgramFromTitle(scholarship.title) === programKey;
+  };
+
+  const byScholarship = SCHOLARSHIP_PROGRAM_CHART_LABELS.map(
+    ({ key, abbreviation }) => {
+      const programApps = filtered.filter((a) =>
+        applicationMatchesProgram(a.scholarshipId, key)
+      );
+      return {
+        name: abbreviation,
+        programKey: key,
+        approved: programApps.filter((a) => a.status === 'Approved').length,
+        rejected: programApps.filter((a) => a.status === 'Rejected').length,
+        pending: programApps.filter(
+          (a) =>
+            a.status === 'Pending' ||
+            a.status === 'Under Review' ||
+            a.status === 'Screened'
+        ).length
+      };
+    }
+  );
   // Applications over time (group by month)
   const overTime = (() => {
     const map = new Map<string, number>();
@@ -300,17 +315,27 @@ export function Reports() {
                 <XAxis
                   dataKey="name"
                   tick={{
-                    fontSize: 11
+                    fontSize: 12
                   }}
-                  angle={-25}
-                  textAnchor="end" />
-                
+                  interval={0}
+                />
                 <YAxis
                   tick={{
                     fontSize: 12
-                  }} />
-                
-                <Tooltip />
+                  }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  labelFormatter={(label) => label}
+                  formatter={(value: number, key: string) => {
+                    const labels: Record<string, string> = {
+                      approved: 'Approved',
+                      pending: 'Pending',
+                      rejected: 'Rejected'
+                    };
+                    return [value, labels[key] ?? key];
+                  }}
+                />
                 <Bar dataKey="approved" stackId="a" fill="#0ea5e9" />
                 <Bar dataKey="pending" stackId="a" fill="#f59e0b" />
                 <Bar dataKey="rejected" stackId="a" fill="#ef4444" />

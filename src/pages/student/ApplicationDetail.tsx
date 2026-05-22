@@ -81,7 +81,8 @@ export function ApplicationDetail() {
     (a) =>
     a.category === 'grant-release' &&
     !!a.grantReleaseDate &&
-    (a.targetAudience === 'all' ||
+    (a.targetAudience === 'all-students' ||
+    a.targetAudience === 'all' ||
     a.targetAudience === scholarship.id ||
     (!!program && a.targetAudience === program))
   ).

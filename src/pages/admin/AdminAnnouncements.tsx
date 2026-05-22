@@ -14,6 +14,11 @@ import { useAuth } from '../../context/AuthContext';
 import { Card, Button, Input, Textarea, Badge } from '../../components/ui';
 import { Modal } from '../../components/ui/Modal';
 import { SCHOLARSHIP_PROGRAMS } from '../../lib/programs';
+import {
+  ANNOUNCEMENT_AUDIENCE_ALL_BENEFICIARIES,
+  ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS,
+  getAnnouncementAudienceLabel
+} from '../../lib/announcements';
 export function AdminAnnouncements() {
   const {
     announcements,
@@ -25,7 +30,7 @@ export function AdminAnnouncements() {
   const { user } = useAuth();
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [audience, setAudience] = useState<string>('all'); // 'all' or scholarship id
+  const [audience, setAudience] = useState<string>(ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS);
   const [category, setCategory] = useState<'general' | 'grant-release'>('general');
   const [grantReleaseDate, setGrantReleaseDate] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -61,7 +66,7 @@ export function AdminAnnouncements() {
       }
       setTitle('');
       setContent('');
-      setAudience('all');
+      setAudience(ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS);
       setCategory('general');
       setGrantReleaseDate('');
       setEditingId(null);
@@ -73,12 +78,15 @@ export function AdminAnnouncements() {
     (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   const getAudienceLabel = (target: string) => {
-    if (target === 'all') return 'All Scholarships';
+    if (
+      target === ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS ||
+      target === ANNOUNCEMENT_AUDIENCE_ALL_BENEFICIARIES
+    ) {
+      return getAnnouncementAudienceLabel(target, scholarships);
+    }
     const program = SCHOLARSHIP_PROGRAMS.find((p) => p.key === target);
     if (program) return program.label;
-    const scholarship = scholarships.find((s) => s.id === target);
-    return scholarship?.title || target;
-
+    return getAnnouncementAudienceLabel(target, scholarships);
   };
   const startEdit = (id: string) => {
     const ann = announcements.find((a) => a.id === id);
@@ -86,7 +94,7 @@ export function AdminAnnouncements() {
     setEditingId(ann.id);
     setTitle(ann.title);
     setContent(ann.content);
-    setAudience(ann.targetAudience || 'all');
+    setAudience(ann.targetAudience || ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS);
     setCategory(ann.category || 'general');
     setGrantReleaseDate(
       ann.grantReleaseDate ? new Date(ann.grantReleaseDate).toISOString().split('T')[0] : ''
@@ -104,7 +112,7 @@ export function AdminAnnouncements() {
         setEditingId(null);
         setTitle('');
         setContent('');
-        setAudience('all');
+        setAudience(ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS);
         setCategory('general');
         setGrantReleaseDate('');
       }
@@ -179,17 +187,24 @@ export function AdminAnnouncements() {
                 onChange={(e) => setAudience(e.target.value)}
                 className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
                 
-                <option value="all">All Beneficiaries</option>
-                {SCHOLARSHIP_PROGRAMS.map((p) =>
-                <option key={p.key} value={p.key}>
-                    {p.label}
+                <option value={ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS}>
+                  All Students
+                </option>
+                <option value={ANNOUNCEMENT_AUDIENCE_ALL_BENEFICIARIES}>
+                  All Beneficiaries
+                </option>
+                {SCHOLARSHIP_PROGRAMS.map((p) => (
+                  <option key={p.key} value={p.key}>
+                    {p.label} (beneficiaries)
                   </option>
-                )}
+                ))}
               </select>
               <p className="text-xs text-gray-500 mt-1.5">
-                {audience === 'all' ?
-                'This announcement will be visible to all beneficiaries.' :
-                'Only approved beneficiaries of this scholarship program will see this announcement.'}
+                {audience === ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS
+                  ? 'Visible to every registered student account. All students will receive an in-app notification and email.'
+                  : audience === ANNOUNCEMENT_AUDIENCE_ALL_BENEFICIARIES
+                    ? 'Visible to students with at least one approved scholarship application. They will receive an email at their signup address.'
+                    : 'Visible to approved beneficiaries in this program only. They will receive an email at their signup address.'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -202,7 +217,7 @@ export function AdminAnnouncements() {
                   setEditingId(null);
                   setTitle('');
                   setContent('');
-                  setAudience('all');
+                  setAudience(ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS);
                   setCategory('general');
                   setGrantReleaseDate('');
                 }}>
@@ -227,7 +242,10 @@ export function AdminAnnouncements() {
             </Card> :
 
           sortedAnnouncements.map((a) => {
-            const isAll = a.targetAudience === 'all';
+            const isAllStudents =
+              a.targetAudience === ANNOUNCEMENT_AUDIENCE_ALL_STUDENTS;
+            const isAllBeneficiaries =
+              a.targetAudience === ANNOUNCEMENT_AUDIENCE_ALL_BENEFICIARIES;
             const isGrantRelease = a.category === 'grant-release';
             return (
               <Card key={a.id} className="p-6">
@@ -236,16 +254,18 @@ export function AdminAnnouncements() {
                     <div className="flex items-center gap-2">
                       <Badge
                         variant={
-                        isGrantRelease ? 'warning' : isAll ?
-                        'info' :
-                        'success'
+                          isGrantRelease
+                            ? 'warning'
+                            : isAllStudents || isAllBeneficiaries
+                              ? 'info'
+                              : 'success'
                         }>
                         <span className="flex items-center gap-1">
-                          {isAll ?
-                        <Globe className="w-3 h-3" /> :
-
-                        <GraduationCap className="w-3 h-3" />
-                        }
+                          {isAllStudents || isAllBeneficiaries ? (
+                            <Globe className="w-3 h-3" />
+                          ) : (
+                            <GraduationCap className="w-3 h-3" />
+                          )}
                           {getAudienceLabel(a.targetAudience)}
                         </span>
                       </Badge>
